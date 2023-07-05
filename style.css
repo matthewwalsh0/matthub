@@ -1,0 +1,14 @@
+.zenhub-status {
+  margin: 0.5rem;
+  border-radius: 999px;
+  background-color: rgb(246, 248, 250);
+  border-color: rgb(208, 215, 222);
+  font-family: inherit;
+  font-size: 12px;
+  height: 20px;
+  line-height: 20px;
+  font-weight: 600;
+  color: rgb(101, 109, 118);
+  padding-left: 8px;
+  padding-right: 8px;
+}

@@ -1,0 +1,16 @@
+{
+  "name": "MattHub",
+  "version": "0.1",
+  "description": "Add ZenHub columns to the GitHub project view.",
+  "author": "Matthew Walsh (matthew.walsh@consensys.net)",
+  "manifest_version": 2,
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/orgs/*/projects/*/views/*"],
+      "js": ["contentScript.js"],
+      "css": ["style.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage"]
+}
