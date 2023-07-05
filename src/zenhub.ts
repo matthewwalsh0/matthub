@@ -24,13 +24,13 @@ export default class ZenHub {
     this.#apiKey = apiKey;
   }
 
-  async getMetadata(): Promise<ZenHubMetadata> {
+  async getMetadata(workspaceName: string): Promise<ZenHubMetadata> {
     const data = await this.#request(
       `
-      query {
+      query getMetadata($workspaceName: String!) {
         viewer {
           id
-          searchWorkspaces(query: "Confirmations System") {
+          searchWorkspaces(query: $workspaceName) {
             nodes {
               id
               name
@@ -54,8 +54,12 @@ export default class ZenHub {
           }
         }
       }`,
-      {}
+      { workspaceName }
     );
+
+    if (data.data.viewer.searchWorkspaces.nodes.length === 0) {
+      throw new Error(`Workspace '${workspaceName}' not found`);
+    }
 
     return {
       workspaceId: data.data.viewer.searchWorkspaces.nodes[0].id,

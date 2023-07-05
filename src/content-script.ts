@@ -1,27 +1,49 @@
 import Column from "./column";
 import { getGitHubIssues } from "./github";
-import { getState, State } from "./state";
+import { Cache, Config, getCache, getConfig, State } from "./state";
 import Storage from "./storage";
 import ZenHub, { ZenHubIssue } from "./zenhub";
 
 class Extension {
-  #state: State;
-  #storage: Storage<State>;
+  #config: Config;
+  #cache: Cache;
   #zenHub: ZenHub;
+  #storage: Storage<Cache>;
 
   async init() {
-    ({
-      state: this.#state,
-      storage: this.#storage,
-      zenHub: this.#zenHub,
-    } = await getState());
+    this.#config = await getConfig();
+    this.#cache = await getCache();
+    this.#zenHub = new ZenHub({ apiKey: this.#config.apiKey });
+    this.#storage = new Storage<Cache>();
+  }
+
+  async waitForConfig() {
+    return new Promise((resolve) => {
+      const checkConfig = async () => {
+        const issues = getGitHubIssues();
+        const config = await getConfig();
+
+        if (
+          Object.keys(issues).length > 0 &&
+          config.apiKey &&
+          config.workspaceName &&
+          config.labelFilter
+        ) {
+          resolve(issues);
+        } else {
+          setTimeout(() => checkConfig(), 100);
+        }
+      };
+
+      checkConfig();
+    });
   }
 
   addPipelineColumn() {
     this.#addSelectColumn(
       "Status",
       "ZenHub Status",
-      () => Object.keys(this.#state.zenHubMetadata.pipelines),
+      () => Object.keys(this.#cache.zenHubMetadata.pipelines),
       (zenHubIssue, value) => zenHubIssue.pipelineName === value,
       this.#onZenHubPipelineChange.bind(this)
     );
@@ -33,7 +55,7 @@ class Extension {
       "ZenHub Estimate",
       (zenHubIssue: ZenHubIssue) => [
         "None",
-        ...this.#state.zenHubMetadata.estimates[zenHubIssue.repositoryName].map(
+        ...this.#cache.zenHubMetadata.estimates[zenHubIssue.repositoryName].map(
           (estimate) => estimate + ""
         ),
       ],
@@ -64,7 +86,7 @@ class Extension {
       for (const gitHubIssue of Object.values(gitHubIssues)) {
         if (gitHubIssue.row.getAttribute(processedKey)) continue;
 
-        const zenHubIssue = this.#state.zenHubIssues[gitHubIssue.key];
+        const zenHubIssue = this.#cache.zenHubIssues[gitHubIssue.key];
 
         const cellContent = this.#setSelectCell(
           zenHubIssue,
@@ -112,12 +134,12 @@ class Extension {
     select: HTMLSelectElement,
     zenHubIssue: ZenHubIssue
   ) {
-    const newPipelineId = this.#state.zenHubMetadata.pipelines[newPipelineName];
+    const newPipelineId = this.#cache.zenHubMetadata.pipelines[newPipelineName];
     let success = true;
 
     try {
       await this.#zenHub.setPipeline(
-        this.#state.zenHubMetadata.workspaceId,
+        this.#cache.zenHubMetadata.workspaceId,
         zenHubIssue.id,
         newPipelineId
       );
@@ -129,7 +151,7 @@ class Extension {
     }
 
     await this.#storage.set("zenHubIssues", {
-      ...this.#state.zenHubIssues,
+      ...this.#cache.zenHubIssues,
       [zenHubIssue.key]: {
         ...zenHubIssue,
         pipelineName: newPipelineName,
@@ -158,7 +180,7 @@ class Extension {
     }
 
     await this.#storage.set("zenHubIssues", {
-      ...this.#state.zenHubIssues,
+      ...this.#cache.zenHubIssues,
       [zenHubIssue.key]: {
         ...zenHubIssue,
         estimate: newEstimate,
@@ -179,31 +201,17 @@ class Extension {
   }
 }
 
-async function waitForIssues() {
-  return new Promise((resolve) => {
-    let interval: any;
-
-    interval = setInterval(() => {
-      const issues = getGitHubIssues();
-
-      if (Object.keys(issues).length > 0) {
-        clearInterval(interval);
-        resolve(issues);
-      }
-    }, 100);
-  });
-}
-
 async function init() {
   try {
     const extension = new Extension();
+
+    await extension.waitForConfig();
     await extension.init();
-    await waitForIssues();
+
     extension.addPipelineColumn();
     extension.addEstimateColumn();
   } catch (e) {
-    console.error(`MattHub Error - ${e.message}`);
-    throw e;
+    console.error(`MattHub Error - ${e.message}`, e);
   }
 }
 

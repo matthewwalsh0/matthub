@@ -3,66 +3,96 @@ import ZenHub, { ZenHubIssuesResult, ZenHubMetadata } from "./zenhub";
 
 const STATE_VERSION = 4;
 const CACHE_DURATION = 1000 * 60 * 10; // 10 Minutes
-const LABEL_FILTER = "team-confirmations-system";
 
 export type State = {
-  zenHubMetadata: ZenHubMetadata;
-  zenHubIssues: ZenHubIssuesResult;
-  cachedAt: number;
-  version: number;
-  apiKey: string;
+  apiKey?: string;
+  cachedAt?: number;
+  labelFilter?: string;
+  version?: number;
+  workspaceName?: string;
+  zenHubIssues?: ZenHubIssuesResult;
+  zenHubMetadata?: ZenHubMetadata;
 };
 
-export async function getState() {
-  const storage = new Storage<State>();
+export type Config = {
+  apiKey?: string;
+  labelFilter?: string;
+  workspaceName?: string;
+};
 
-  const state = await storage.getMany([
-    "zenHubMetadata",
-    "zenHubIssues",
+export type Cache = {
+  cachedAt?: number;
+  version?: number;
+  zenHubIssues?: ZenHubIssuesResult;
+  zenHubMetadata?: ZenHubMetadata;
+};
+
+export async function getConfig(): Promise<Config> {
+  return new Storage<Config>().getMany([
+    "apiKey",
+    "labelFilter",
+    "workspaceName",
+  ]);
+}
+
+export async function getCache(): Promise<Cache> {
+  const config = await getConfig();
+
+  let cache = await new Storage<Cache>().getMany([
     "cachedAt",
     "version",
-    "apiKey",
+    "zenHubIssues",
+    "zenHubMetadata",
   ]);
 
-  if (!state.apiKey) {
-    state.apiKey = prompt("Enter your ZenHub API key");
-    storage.set("apiKey", state.apiKey);
+  if (!config.apiKey || !config.workspaceName || !config.labelFilter) {
+    return {
+      cachedAt: 0,
+      zenHubIssues: {},
+      zenHubMetadata: { workspaceId: undefined, pipelines: {}, estimates: {} },
+    };
   }
-
-  const zenHub = new ZenHub({ apiKey: state.apiKey });
 
   if (
-    state.version === STATE_VERSION &&
-    state.zenHubIssues &&
-    state.zenHubMetadata &&
-    state.cachedAt &&
-    state.cachedAt > Date.now() - CACHE_DURATION
+    !cache ||
+    cache.version !== STATE_VERSION ||
+    cache.cachedAt < Date.now() - CACHE_DURATION ||
+    !cache.zenHubIssues ||
+    !cache.zenHubMetadata
   ) {
-    return {state: state as State, zenHub, storage};
+    const zenHub = new ZenHub({ apiKey: config.apiKey });
+    const zenHubMetadata = await zenHub.getMetadata(config.workspaceName);
+    let zenHubIssues = {};
+
+    for (const pipelineId of Object.values(zenHubMetadata.pipelines)) {
+      const issues = await zenHub.getIssues(
+        zenHubMetadata.workspaceId,
+        pipelineId,
+        config.labelFilter
+      );
+
+      zenHubIssues = { ...zenHubIssues, ...issues };
+    }
+
+    cache = {
+      cachedAt: Date.now(),
+      version: STATE_VERSION,
+      zenHubIssues,
+      zenHubMetadata,
+    };
+
+    await new Storage<Cache>().setMany(cache);
   }
 
-  const zenHubMetadata = await zenHub.getMetadata();
-  let zenHubIssues = {};
+  return cache;
+}
 
-  for (const pipelineId of Object.values(zenHubMetadata.pipelines)) {
-    const issues = await zenHub.getIssues(
-      zenHubMetadata.workspaceId,
-      pipelineId,
-      LABEL_FILTER
-    );
+export async function setConfig(config: Config) {
+  await new Storage<Config>().setMany(config);
+}
 
-    zenHubIssues = { ...zenHubIssues, ...issues };
-  }
-
-  const newState = {
-    zenHubMetadata,
-    zenHubIssues,
-    cachedAt: Date.now(),
-    version: STATE_VERSION,
-    apiKey: state.apiKey,
-  };
-
-  await storage.setMany(newState);
-
-  return {state: newState as State, zenHub, storage};
+export async function clearCache() {
+  await new Storage<Cache>().setMany({
+    cachedAt: 0,
+  });
 }

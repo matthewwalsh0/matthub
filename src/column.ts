@@ -37,6 +37,8 @@ export default class Column {
         ?.includes(`column: ${this.#existingColumnName}`)
     );
 
+    if (!existingCell) return;
+
     const newCell = existingCell.cloneNode(false) as Element;
     newCell.id += "-zenhub";
     newCell.innerHTML = html;

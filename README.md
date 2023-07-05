@@ -14,16 +14,17 @@ yarn build
 1. Open Google Chrome.
 2. Navigate to `chrome://extensions/`.
 3. Enable developer mode.
-4. Select `Load unpacked`.
+4. Click `Load unpacked`.
 5. Select the `dist` directory.
 
 # Usage
 
 1. Generate a ZenHub GraphQL Personal API key [here](https://app.zenhub.com/settings/tokens).
-1. Navigate to a GitHub project table view.
-2. On first usage, enter a ZenHub API key when prompted.
+2. Click the extension icon.
+3. Enter the API Key, ZenHub Workspace Name, and the Label Filter.
+4. Click `Save`.
+5. Navigate to a GitHub project table view.
 
-# Limitations
+# Notes
 
-- ZenHub API requests are cached for 10 minutes unless the extension is reinstalled.
-- The issue search is currently limited to a workspace with the name `Confirmations System` and for items with the label `team-confirmations-system`.
+- ZenHub data is cached for 10 minutes unless the extension is reinstalled or the `Clear Cache` button is clicked.

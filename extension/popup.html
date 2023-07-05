@@ -1,0 +1,30 @@
+<html>
+  <head>
+    <title>MattHub</title>
+    <script src="popup.js"></script>
+    <style type="text/css">
+      body {
+        width: 300px;
+        padding: 10px;
+      }
+      label {
+        display: block;
+        padding-bottom: 3px;
+      }
+      input {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <label for="api-key">ZenHub API Key</label>
+    <input id="api-key" type="text" />
+    <label for="workspace-name">ZenHub Workspace Name</label>
+    <input id="workspace-name" type="text" />
+    <label for="label-filter">Label Filter</label>
+    <input id="label-filter" type="text" />
+    <button id="save">Save</button>
+    <button id="clear-cache">Clear Cache</button>
+  </body>
+</html>

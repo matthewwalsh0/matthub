@@ -2,7 +2,10 @@ const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
-  entry: "./src/content-script.ts",
+  entry: {
+    "content-script": "./src/content-script.ts",
+    popup: "./src/popup.ts",
+  },
   mode: "production",
   module: {
     rules: [
@@ -17,7 +20,7 @@ module.exports = {
     extensions: [".ts", ".js"],
   },
   output: {
-    filename: "content-script.js",
+    filename: "[name].js",
     path: path.resolve(__dirname, "dist"),
   },
   plugins: [
