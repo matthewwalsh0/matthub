@@ -7,7 +7,7 @@
   "content_scripts": [
     {
       "matches": ["https://github.com/orgs/*/projects/*/views/*"],
-      "js": ["contentScript.js"],
+      "js": ["content-script.js"],
       "css": ["style.css"],
       "run_at": "document_idle"
     }
