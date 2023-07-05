@@ -21,7 +21,7 @@ yarn build
 
 1. Generate a ZenHub GraphQL Personal API key [here](https://app.zenhub.com/settings/tokens).
 2. Click the extension icon.
-3. Enter the API Key, ZenHub Workspace Name, and the Label Filter.
+3. Enter the `ZenHub API Key`, `ZenHub Workspace Name`, and the `Label Filter`.
 4. Click `Save`.
 5. Navigate to a GitHub project table view.
 
