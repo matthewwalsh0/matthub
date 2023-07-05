@@ -9,7 +9,7 @@
       "matches": ["https://github.com/orgs/*/projects/*/views/*"],
       "js": ["content-script.js"],
       "css": ["style.css"],
-      "run_at": "document_idle"
+      "run_at": "document_end"
     }
   ],
   "permissions": ["storage"]

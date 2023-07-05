@@ -97,9 +97,6 @@ class Extension {
   ): string {
     if (!zenHubIssue) return "<span></span>";
 
-    console.log(zenHubIssue);
-    console.log(this.#state.zenHubMetadata.estimates);
-
     const options = getOptions(zenHubIssue)
       .map((optionName) => {
         const selected = isSelected(zenHubIssue, optionName) ? " selected" : "";
@@ -182,10 +179,26 @@ class Extension {
   }
 }
 
+async function waitForIssues() {
+  return new Promise((resolve) => {
+    let interval: any;
+
+    interval = setInterval(() => {
+      const issues = getGitHubIssues();
+
+      if (Object.keys(issues).length > 0) {
+        clearInterval(interval);
+        resolve(issues);
+      }
+    }, 100);
+  });
+}
+
 async function init() {
   try {
     const extension = new Extension();
     await extension.init();
+    await waitForIssues();
     extension.addPipelineColumn();
     extension.addEstimateColumn();
   } catch (e) {
@@ -194,6 +207,4 @@ async function init() {
   }
 }
 
-requestIdleCallback(() => {
-  setTimeout(init, 2000);
-});
+init();
