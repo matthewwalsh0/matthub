@@ -19,7 +19,10 @@ export function getGitHubIssues() {
 
       if (!titleCell) return undefined;
 
-      const issueLink = titleCell.querySelector("a").getAttribute("href");
+      const issueLink = titleCell.querySelector("a")?.getAttribute("href");
+
+      if (!issueLink) return undefined;
+
       const issueNumber = parseInt(issueLink.split("/").pop());
       const repositoryName = issueLink.split("/").slice(-3)[0];
       const key = repositoryName + "#" + issueNumber;
