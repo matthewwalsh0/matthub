@@ -181,14 +181,12 @@ class Extension {
       success = false;
     }
 
-    await this.#storage.set("zenHubIssues", {
-      ...this.#cache.zenHubIssues,
-      [zenHubIssue.key]: {
-        ...zenHubIssue,
-        pipelineName: newPipelineName,
-      },
-    });
+    const updatedZenHubIssue = {
+      ...zenHubIssue,
+      pipelineName: newPipelineName,
+    };
 
+    this.#updateZenHubIssue(updatedZenHubIssue);
     indicateElementSuccess(select, success);
   }
 
@@ -210,15 +208,23 @@ class Extension {
       success = false;
     }
 
-    await this.#storage.set("zenHubIssues", {
-      ...this.#cache.zenHubIssues,
-      [zenHubIssue.key]: {
-        ...zenHubIssue,
-        estimate: newEstimate,
-      },
-    });
+    const updatedZenHubIssue = {
+      ...zenHubIssue,
+      estimate: newEstimate,
+    };
 
+    this.#updateZenHubIssue(updatedZenHubIssue);
     indicateElementSuccess(select, success);
+  }
+
+  async #updateZenHubIssue(zenHubIssue: ZenHubIssue) {
+    const updatedZenHubIssues = {
+      ...this.#cache.zenHubIssues,
+      [zenHubIssue.key]: zenHubIssue,
+    };
+
+    this.#cache.zenHubIssues = updatedZenHubIssues;
+    await this.#storage.set("zenHubIssues", updatedZenHubIssues);
   }
 }
 
