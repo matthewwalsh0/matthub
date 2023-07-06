@@ -1,4 +1,4 @@
-.zenhub-status {
+.matthub-select {
   margin: 0.5rem;
   border-radius: 999px;
   background-color: rgb(246, 248, 250);
@@ -11,4 +11,8 @@
   color: rgb(101, 109, 118);
   padding-left: 8px;
   padding-right: 8px;
+}
+
+.matthub-status-bar {
+  padding-top: 0px !important;
 }

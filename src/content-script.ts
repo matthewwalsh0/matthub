@@ -1,7 +1,9 @@
 import Column from "./column";
 import { getGitHubIssues } from "./github";
 import { Cache, Config, getCache, getConfig, State } from "./state";
+import StatusBar from "./status-bar";
 import Storage from "./storage";
+import { indicateElementSuccess } from "./util";
 import ZenHub, { ZenHubIssue } from "./zenhub";
 
 class Extension {
@@ -9,27 +11,36 @@ class Extension {
   #cache: Cache;
   #zenHub: ZenHub;
   #storage: Storage<Cache>;
+  #statusBar: StatusBar;
 
   async init() {
+    await this.#waitForIssues();
+    this.#addStatusBar();
+
+    this.#statusBar.setMessage("Waiting for settings input...");
+    await this.#waitForConfig();
+
+    this.#statusBar.setMessage("Loading ZenHub data...");
     this.#config = await getConfig();
     this.#cache = await getCache();
     this.#zenHub = new ZenHub({ apiKey: this.#config.apiKey });
     this.#storage = new Storage<Cache>();
+
+    this.#addPipelineColumn();
+    this.#addEstimateColumn();
+
+    this.#statusBar.setMessage(
+      `Loaded ${Object.values(this.#cache.zenHubIssues).length} ZenHub issues.`
+    );
   }
 
-  async waitForConfig() {
-    return new Promise((resolve) => {
+  async #waitForIssues() {
+    return new Promise<void>((resolve) => {
       const checkConfig = async () => {
         const issues = getGitHubIssues();
-        const config = await getConfig();
 
-        if (
-          Object.keys(issues).length > 0 &&
-          config.apiKey &&
-          config.workspaceName &&
-          config.labelFilter
-        ) {
-          resolve(issues);
+        if (Object.keys(issues).length > 0) {
+          resolve();
         } else {
           setTimeout(() => checkConfig(), 100);
         }
@@ -39,7 +50,27 @@ class Extension {
     });
   }
 
-  addPipelineColumn() {
+  async #waitForConfig() {
+    return new Promise<void>((resolve) => {
+      const checkConfig = async () => {
+        const config = await getConfig();
+
+        if (config.apiKey && config.workspaceName && config.labelFilter) {
+          resolve();
+        } else {
+          setTimeout(() => checkConfig(), 100);
+        }
+      };
+
+      checkConfig();
+    });
+  }
+
+  #addStatusBar() {
+    this.#statusBar = new StatusBar();
+  }
+
+  #addPipelineColumn() {
     this.#addSelectColumn(
       "Status",
       "ZenHub Status",
@@ -49,7 +80,7 @@ class Extension {
     );
   }
 
-  addEstimateColumn() {
+  #addEstimateColumn() {
     this.#addSelectColumn(
       "ZenHub Status",
       "ZenHub Estimate",
@@ -126,7 +157,7 @@ class Extension {
       })
       .join("");
 
-    return `<select class="zenhub-status">${options}</select>`;
+    return `<select class="matthub-select">${options}</select>`;
   }
 
   async #onZenHubPipelineChange(
@@ -158,7 +189,7 @@ class Extension {
       },
     });
 
-    this.#showSelectSuccess(select, success);
+    indicateElementSuccess(select, success);
   }
 
   async #onZenHubEstimateChange(
@@ -187,29 +218,13 @@ class Extension {
       },
     });
 
-    this.#showSelectSuccess(select, success);
-  }
-
-  async #showSelectSuccess(select: HTMLSelectElement, success: boolean) {
-    const originalBackgroundColor = select.style.backgroundColor;
-
-    select.style.backgroundColor = success ? "#d0edce" : "#f8d7da";
-
-    setTimeout(() => {
-      select.style.backgroundColor = originalBackgroundColor;
-    }, 2000);
+    indicateElementSuccess(select, success);
   }
 }
 
 async function init() {
   try {
-    const extension = new Extension();
-
-    await extension.waitForConfig();
-    await extension.init();
-
-    extension.addPipelineColumn();
-    extension.addEstimateColumn();
+    await new Extension().init();
   } catch (e) {
     console.error(`MattHub Error - ${e.message}`, e);
   }

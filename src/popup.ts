@@ -1,4 +1,5 @@
 import { clearCache, getConfig, setConfig } from "./state";
+import { indicateElementSuccess } from "./util";
 
 class Popup {
   #apiKeyInput: HTMLInputElement;
@@ -40,23 +41,17 @@ class Popup {
   }
 
   async #onClearCacheClick() {
-    this.#saveButton.disabled = true;
-
     await clearCache();
-
-    this.#saveButton.disabled = false;
+    indicateElementSuccess(this.#clearCacheButton, true);
   }
 
   async #onSaveClick() {
-    this.#saveButton.disabled = true;
-
     await setConfig({
       apiKey: this.#apiKeyInput.value,
       labelFilter: this.#labelFilterInput.value,
       workspaceName: this.#workspaceNameInput.value,
     });
-
-    this.#saveButton.disabled = false;
+    indicateElementSuccess(this.#saveButton, true);
   }
 }
 
