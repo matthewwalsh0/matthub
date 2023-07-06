@@ -15,5 +15,9 @@
   "browser_action": {
     "default_popup": "popup.html"
   },
-  "permissions": ["storage"]
+  "permissions": ["storage"],
+  "web_accessible_resources": [
+    "style.css"
+  ],
+  "content_security_policy": "worker-src github.com/assets-cdn/worker/ gist.github.com/assets-cdn/worker/ blob:;"
 }
