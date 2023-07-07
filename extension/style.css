@@ -1,18 +1,44 @@
 .matthub-select {
   margin: 0.5rem;
   border-radius: 999px;
-  background-color: rgb(246, 248, 250);
-  border-color: rgb(208, 215, 222);
+  background-color: var(--background-color-light);
+  border-color: var(--border-color-light);
   font-family: inherit;
   font-size: 12px;
   height: 20px;
   line-height: 20px;
   font-weight: 600;
-  color: rgb(101, 109, 118);
+  color: var(--text-color-light);
   padding-left: 8px;
   padding-right: 8px;
 }
 
 .matthub-status-bar {
   padding-top: 0px !important;
+}
+
+:root {
+  --text-color-light: rgb(101, 109, 118);
+  --background-color-light: rgb(246, 248, 250);
+  --border-color-light: rgb(208, 215, 222);
+
+  --text-color-dark: rgb(125, 133, 144);
+  --background-color-dark: rgb(22, 27, 34);
+  --border-color-dark: rgb(48, 54, 61);
+}
+
+@media (prefers-color-scheme: light) {
+  .matthub-select {
+    background-color: var(--background-color-light);
+    border-color: var(--border-color-light);
+    color: var(--text-color-light);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .matthub-select {
+    background-color: var(--background-color-dark);
+    border-color: var(--border-color-dark);
+    color: var(--text-color-dark);
+  }
 }
