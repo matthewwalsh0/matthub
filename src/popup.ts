@@ -1,4 +1,11 @@
-import { clearCache, getConfig, setConfig } from "./state";
+import {
+  clearCache,
+  getApiKey,
+  getLabelFilter,
+  getWorkspaceName,
+  initState,
+  setConfig,
+} from "./state";
 import { indicateElementSuccess } from "./util";
 
 class Popup {
@@ -27,11 +34,15 @@ class Popup {
   }
 
   async init() {
-    const config = await getConfig();
+    await initState();
 
-    this.#apiKeyInput.value = config.apiKey || "";
-    this.#labelFilterInput.value = config.labelFilter || "";
-    this.#workspaceNameInput.value = config.workspaceName || "";
+    const apiKey = getApiKey();
+    const labelFilter = getLabelFilter();
+    const workspaceName = getWorkspaceName();
+
+    this.#apiKeyInput.value = apiKey || "";
+    this.#labelFilterInput.value = labelFilter || "";
+    this.#workspaceNameInput.value = workspaceName || "";
 
     this.#saveButton.addEventListener("click", () => this.#onSaveClick());
 

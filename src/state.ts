@@ -1,5 +1,9 @@
 import Storage from "./storage";
-import ZenHub, { ZenHubIssuesResult, ZenHubMetadata } from "./zenhub";
+import ZenHub, {
+  ZenHubIssue,
+  ZenHubIssuesResult,
+  ZenHubMetadata,
+} from "./zenhub";
 
 const STATE_VERSION = 4;
 const CACHE_DURATION = 1000 * 60 * 10; // 10 Minutes
@@ -27,68 +31,201 @@ export type Cache = {
   zenHubMetadata?: ZenHubMetadata;
 };
 
-export async function getConfig(): Promise<Config> {
-  return new Storage<Config>().getMany([
-    "apiKey",
-    "labelFilter",
-    "workspaceName",
-  ]);
+const cachedState: State = {};
+
+export async function initState() {
+  const storage = new Storage<State>();
+
+  Object.assign(
+    cachedState,
+    await storage.getMany([
+      "apiKey",
+      "cachedAt",
+      "labelFilter",
+      "version",
+      "workspaceName",
+      "zenHubIssues",
+      "zenHubMetadata",
+    ])
+  );
 }
 
-export async function getCache(): Promise<Cache> {
-  const config = await getConfig();
+export async function updateState() {
+  const apiKey = getApiKey();
+  const labelFilter = getLabelFilter();
+  const workspaceName = getWorkspaceName();
 
-  let cache = await new Storage<Cache>().getMany([
-    "cachedAt",
-    "version",
-    "zenHubIssues",
-    "zenHubMetadata",
-  ]);
-
-  if (!config.apiKey || !config.workspaceName || !config.labelFilter) {
-    return {
-      cachedAt: 0,
-      zenHubIssues: {},
-      zenHubMetadata: { workspaceId: undefined, pipelines: {}, estimates: {} },
-    };
+  if (!apiKey || !labelFilter || !workspaceName) {
+    return;
   }
+
+  let cachedAt = getCachedAt();
+  let version = getStorageVersion();
+  let zenHubIssues = getZenHubIssues();
+  let zenHubMetadata = getZenHubMetadata();
 
   if (
-    !cache ||
-    cache.version !== STATE_VERSION ||
-    cache.cachedAt < Date.now() - CACHE_DURATION ||
-    !cache.zenHubIssues ||
-    !cache.zenHubMetadata
+    version === STATE_VERSION &&
+    cachedAt >= Date.now() - CACHE_DURATION &&
+    zenHubIssues &&
+    zenHubMetadata
   ) {
-    const zenHub = new ZenHub({ apiKey: config.apiKey });
-    const zenHubMetadata = await zenHub.getMetadata(config.workspaceName);
-    let zenHubIssues = {};
-
-    for (const pipelineId of Object.values(zenHubMetadata.pipelines)) {
-      const issues = await zenHub.getIssues(
-        zenHubMetadata.workspaceId,
-        pipelineId,
-        config.labelFilter
-      );
-
-      zenHubIssues = { ...zenHubIssues, ...issues };
-    }
-
-    cache = {
-      cachedAt: Date.now(),
-      version: STATE_VERSION,
-      zenHubIssues,
-      zenHubMetadata,
-    };
-
-    await new Storage<Cache>().setMany(cache);
+    return;
   }
 
-  return cache;
+  const zenHub = new ZenHub({ apiKey });
+
+  zenHubMetadata = await zenHub.getMetadata(workspaceName);
+  zenHubIssues = {};
+
+  for (const pipelineId of Object.values(zenHubMetadata.pipelines)) {
+    const issues = await zenHub.getIssues(
+      zenHubMetadata.workspaceId,
+      pipelineId,
+      labelFilter,
+      workspaceName
+    );
+
+    zenHubIssues = { ...zenHubIssues, ...issues };
+  }
+
+  const updatedState = {
+    cachedAt: Date.now(),
+    version: STATE_VERSION,
+    zenHubIssues,
+    zenHubMetadata,
+  };
+
+  await new Storage<Cache>().setMany(updatedState);
+
+  Object.assign(cachedState, updatedState);
+}
+
+export function getApiKey(): string | undefined {
+  return cachedState.apiKey;
+}
+
+export function getLabelFilter(): string | undefined {
+  return cachedState.labelFilter;
+}
+
+export function getWorkspaceName(): string | undefined {
+  return cachedState.workspaceName;
+}
+
+export function getZenHubIssues(): ZenHubIssuesResult | undefined {
+  return cachedState.zenHubIssues;
+}
+
+export function getZenHubMetadata(): ZenHubMetadata | undefined {
+  return cachedState.zenHubMetadata;
+}
+
+export function getStorageVersion(): number | undefined {
+  return cachedState.version;
+}
+
+export function getCachedAt(): number | undefined {
+  return cachedState.cachedAt;
+}
+
+export async function setPipeline(
+  zenHubIssue: ZenHubIssue,
+  pipelineId: string
+) {
+  const apiKey = getApiKey();
+  const zenHub = new ZenHub({ apiKey });
+  const workspaceId = getZenHubMetadata()?.workspaceId;
+
+  try {
+    await zenHub.setPipeline(workspaceId, zenHubIssue.id, pipelineId);
+  } catch (e) {
+    console.error(
+      `MattHub Error - Failed to set ZenHub pipeline - ${e.message}`
+    );
+
+    throw e;
+  }
+
+  const zenHubIssues = getZenHubIssues();
+
+  const updatedZenHubIssues = {
+    ...zenHubIssues,
+    [zenHubIssue.key]: { ...zenHubIssue, pipelineId },
+  };
+
+  await new Storage<Cache>().set("zenHubIssues", updatedZenHubIssues);
+
+  cachedState.zenHubIssues = updatedZenHubIssues;
+}
+
+export async function setEstimate(
+  zenHubIssue: ZenHubIssue,
+  estimate: number | null
+) {
+  const apiKey = getApiKey();
+  const zenHub = new ZenHub({ apiKey });
+
+  try {
+    await zenHub.setEstimate(zenHubIssue.id, estimate);
+  } catch (e) {
+    console.error(
+      `MattHub Error - Failed to set ZenHub estimate - ${e.message}`
+    );
+
+    throw e;
+  }
+
+  const zenHubIssues = getZenHubIssues();
+
+  const updatedZenHubIssues = {
+    ...zenHubIssues,
+    [zenHubIssue.key]: { ...zenHubIssue, estimate },
+  };
+
+  await new Storage<Cache>().set("zenHubIssues", updatedZenHubIssues);
+
+  cachedState.zenHubIssues = updatedZenHubIssues;
+}
+
+export async function refresh(repositoryId: number, issueNumber: number) {
+  const apiKey = getApiKey();
+  const workspaceName = getWorkspaceName();
+  const zenHubMetadata = getZenHubMetadata();
+  const zenHub = new ZenHub({ apiKey });
+
+  let issue: ZenHubIssue;
+
+  try {
+    issue = await zenHub.getIssue(
+      zenHubMetadata.workspaceId,
+      repositoryId,
+      issueNumber,
+      workspaceName
+    );
+  } catch (e) {
+    console.error(
+      `MattHub Error - Failed to refresh ZenHub issue - ${e.message}`
+    );
+
+    throw e;
+  }
+
+  const zenHubIssues = getZenHubIssues();
+
+  const updatedZenHubIssues = {
+    ...zenHubIssues,
+    [issue.key]: issue,
+  };
+
+  await new Storage<Cache>().set("zenHubIssues", updatedZenHubIssues);
+
+  cachedState.zenHubIssues = updatedZenHubIssues;
 }
 
 export async function setConfig(config: Config) {
   await new Storage<Config>().setMany(config);
+  Object.assign(cachedState, config);
 }
 
 export async function clearCache() {

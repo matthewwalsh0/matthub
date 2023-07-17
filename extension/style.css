@@ -1,3 +1,13 @@
+:root {
+  --text-color-light: rgb(101, 109, 118);
+  --background-color-light: rgb(246, 248, 250);
+  --border-color-light: rgb(208, 215, 222);
+
+  --text-color-dark: rgb(125, 133, 144);
+  --background-color-dark: rgb(22, 27, 34);
+  --border-color-dark: rgb(48, 54, 61);
+}
+
 .matthub-select {
   margin: 0.5rem;
   border-radius: 999px;
@@ -17,14 +27,26 @@
   padding-top: 0px !important;
 }
 
-:root {
-  --text-color-light: rgb(101, 109, 118);
-  --background-color-light: rgb(246, 248, 250);
-  --border-color-light: rgb(208, 215, 222);
+.matthub-cell-zenhub-status {
+  width: 250px !important;
+}
 
-  --text-color-dark: rgb(125, 133, 144);
-  --background-color-dark: rgb(22, 27, 34);
-  --border-color-dark: rgb(48, 54, 61);
+.matthub-action {
+  height: 25px;
+  vertical-align: middle;
+  margin-left: 5px;
+}
+
+.matthub-action:hover {
+  cursor: pointer;
+}
+
+.matthub-action-open {
+  content: url("chrome-extension://__MSG_@@extension_id__/resources/open.svg");
+}
+
+.matthub-action-refresh {
+  content: url("chrome-extension://__MSG_@@extension_id__/resources/refresh.svg");
 }
 
 @media (prefers-color-scheme: light) {
@@ -40,5 +62,9 @@
     background-color: var(--background-color-dark);
     border-color: var(--border-color-dark);
     color: var(--text-color-dark);
+  }
+
+  .matthub-action {
+    filter: invert(1);
   }
 }

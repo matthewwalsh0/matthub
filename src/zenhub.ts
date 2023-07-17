@@ -3,7 +3,7 @@ const API_URL = "https://api.zenhub.com/public/graphql";
 export type ZenHubMetadata = {
   workspaceId: string;
   pipelines: Record<string, string>;
-  estimates: Record<string, number[]>;
+  repositories: Record<string, { id: number; estimates: number[] }>;
 };
 
 export type ZenHubIssue = {
@@ -13,6 +13,7 @@ export type ZenHubIssue = {
   estimate: number;
   pipelineName: string;
   repositoryName: string;
+  url: string;
 };
 
 export type ZenHubIssuesResult = Record<string, ZenHubIssue>;
@@ -71,10 +72,13 @@ export default class ZenHub {
           },
           {}
         ),
-      estimates:
+      repositories:
         data.data.viewer.searchWorkspaces.nodes[0].repositoriesConnection.nodes.reduce(
-          (output: Record<string, number[]>, repository: any) => {
-            output[repository.name] = repository.estimateSet.values;
+          (output: any, repository: any) => {
+            output[repository.name] = {
+              id: repository.ghId,
+              estimates: repository.estimateSet.values,
+            };
             return output;
           },
           {}
@@ -85,7 +89,8 @@ export default class ZenHub {
   async getIssues(
     workspaceId: string,
     pipelineId: string,
-    label: string
+    label: string,
+    workspaceName: string
   ): Promise<ZenHubIssuesResult> {
     const data = await this.#request(
       `
@@ -99,6 +104,7 @@ export default class ZenHub {
             number
             repository {
               name
+              ownerName
             }
             estimate {
               value
@@ -129,12 +135,70 @@ export default class ZenHub {
             estimate: node.estimate?.value,
             pipelineName: node.pipelineIssue?.pipeline?.name,
             repositoryName: node.repository.name,
+            url: `https://app.zenhub.com/workspaces/${workspaceName
+              .replace(" ", "-")
+              .toLocaleLowerCase()}-${workspaceId}/issues/gh/${
+              node.repository.ownerName
+            }/${node.repository.name}/${node.number}`,
           };
           return output;
         },
         {}
       ) || {}
     );
+  }
+
+  async getIssue(
+    workspaceId: string,
+    repositoryId: number,
+    issueNumber: number,
+    workspaceName: string
+  ): Promise<ZenHubIssue> {
+    const data = await this.#request(
+      `query getIssue($repositoryGhId: Int!, $issueNumber: Int!, $workspaceId: ID!) {
+      issueByInfo(repositoryGhId: $repositoryGhId, issueNumber: $issueNumber) {
+        id
+        title
+        number
+        repository {
+          name
+          ownerName
+        }
+        estimate {
+          value
+        }
+        pipelineIssue(workspaceId:$workspaceId) {
+          pipeline {
+            name
+          }
+        }
+      }
+    }`,
+      {
+        workspaceId,
+        repositoryGhId: repositoryId,
+        issueNumber,
+      }
+    );
+
+    return {
+      key:
+        data.data.issueByInfo.repository.name +
+        "#" +
+        data.data.issueByInfo.number,
+      id: data.data.issueByInfo.id,
+      title: data.data.issueByInfo.title,
+      estimate: data.data.issueByInfo.estimate?.value,
+      pipelineName: data.data.issueByInfo.pipelineIssue?.pipeline?.name,
+      repositoryName: data.data.issueByInfo.repository.name,
+      url: `https://app.zenhub.com/workspaces/${workspaceName
+        .replace(" ", "-")
+        .toLocaleLowerCase()}-${workspaceId}/issues/gh/${
+        data.data.issueByInfo.repository.ownerName
+      }/${data.data.issueByInfo.repository.name}/${
+        data.data.issueByInfo.number
+      }`,
+    };
   }
 
   async setPipeline(workspaceId: string, issueId: string, pipelineId: string) {
