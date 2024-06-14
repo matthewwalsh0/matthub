@@ -6,7 +6,7 @@ import {
   initState,
   setConfig,
 } from "./state";
-import { indicateElementSuccess } from "./util";
+import { indicateButtonSuccess } from "./util";
 
 class Popup {
   #apiKeyInput: HTMLInputElement;
@@ -53,7 +53,7 @@ class Popup {
 
   async #onClearCacheClick() {
     await clearCache();
-    indicateElementSuccess(this.#clearCacheButton, true);
+    indicateButtonSuccess(this.#clearCacheButton, true);
   }
 
   async #onSaveClick() {
@@ -62,7 +62,7 @@ class Popup {
       labelFilter: this.#labelFilterInput.value,
       workspaceName: this.#workspaceNameInput.value,
     });
-    indicateElementSuccess(this.#saveButton, true);
+    indicateButtonSuccess(this.#saveButton, true);
   }
 }
 

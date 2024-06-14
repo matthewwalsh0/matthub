@@ -7,3 +7,13 @@ export function indicateElementSuccess(select: HTMLElement, success: boolean) {
     select.style.backgroundColor = originalBackgroundColor;
   }, 2000);
 }
+
+export function indicateButtonSuccess(button: HTMLElement, success: boolean) {
+  const className = success ? "btn-success" : "btn-danger";
+
+  button.classList.add(className);
+
+  setTimeout(() => {
+    button.classList.remove(className);
+  }, 2000);
+}
