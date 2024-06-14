@@ -58,31 +58,32 @@ export default class ZenHub {
       { workspaceName }
     );
 
-    if (data.data.viewer.searchWorkspaces.nodes.length === 0) {
+    const nodes = data.data.viewer.searchWorkspaces.nodes;
+    const node = nodes.find((node: any) => node.name === workspaceName);
+
+    if (!node) {
       throw new Error(`Workspace '${workspaceName}' not found`);
     }
 
     return {
-      workspaceId: data.data.viewer.searchWorkspaces.nodes[0].id,
-      pipelines:
-        data.data.viewer.searchWorkspaces.nodes[0].pipelinesConnection.nodes.reduce(
-          (output: Record<string, string>, node: any) => {
-            output[node.name] = node.id;
-            return output;
-          },
-          {}
-        ),
-      repositories:
-        data.data.viewer.searchWorkspaces.nodes[0].repositoriesConnection.nodes.reduce(
-          (output: any, repository: any) => {
-            output[repository.name] = {
-              id: repository.ghId,
-              estimates: repository.estimateSet.values,
-            };
-            return output;
-          },
-          {}
-        ),
+      workspaceId: node.id,
+      pipelines: node.pipelinesConnection.nodes.reduce(
+        (output: Record<string, string>, node: any) => {
+          output[node.name] = node.id;
+          return output;
+        },
+        {}
+      ),
+      repositories: node.repositoriesConnection.nodes.reduce(
+        (output: any, repository: any) => {
+          output[repository.name] = {
+            id: repository.ghId,
+            estimates: repository.estimateSet.values,
+          };
+          return output;
+        },
+        {}
+      ),
     };
   }
 
@@ -92,12 +93,17 @@ export default class ZenHub {
     label: string,
     workspaceName: string
   ): Promise<ZenHubIssuesResult> {
-    const data = await this.#request(
-      `
-      query getPipelineAndLabelIssues($workspaceId: ID!, $pipelineId: ID!, $label: String!) {
-        searchIssuesByPipeline(pipelineId: $pipelineId, filters: {
+    const getPage = (pageCursor = "") =>
+      this.#request(
+        `
+      query getPipelineAndLabelIssues($workspaceId: ID!, $pipelineId: ID!, $label: String!, $pageCursor: String) {
+        searchIssuesByPipeline(pipelineId: $pipelineId, after: $pageCursor, filters: {
           labels: {in: [$label]}
         }) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             id
             title
@@ -118,33 +124,42 @@ export default class ZenHub {
         }
       }
     `,
-      {
-        workspaceId,
-        pipelineId,
-        label,
-      }
-    );
+        {
+          workspaceId,
+          pipelineId,
+          label,
+          pageCursor,
+        }
+      );
+
+    const nodes = [];
+    let hasNextPage = true;
+    let cursor = "";
+
+    while (hasNextPage) {
+      const data = await getPage(cursor);
+      nodes.push(...data.data.searchIssuesByPipeline.nodes);
+      hasNextPage = data.data.searchIssuesByPipeline.pageInfo.hasNextPage;
+      cursor = data.data.searchIssuesByPipeline.pageInfo.endCursor;
+    }
 
     return (
-      data.data.searchIssuesByPipeline?.nodes.reduce(
-        (output: any, node: any) => {
-          output[node.repository.name + "#" + node.number] = {
-            key: node.repository.name + "#" + node.number,
-            id: node.id,
-            title: node.title,
-            estimate: node.estimate?.value,
-            pipelineName: node.pipelineIssue?.pipeline?.name,
-            repositoryName: node.repository.name,
-            url: `https://app.zenhub.com/workspaces/${workspaceName
-              .replace(" ", "-")
-              .toLocaleLowerCase()}-${workspaceId}/issues/gh/${
-              node.repository.ownerName
-            }/${node.repository.name}/${node.number}`,
-          };
-          return output;
-        },
-        {}
-      ) || {}
+      nodes.reduce((output: any, node: any) => {
+        output[node.repository.name + "#" + node.number] = {
+          key: node.repository.name + "#" + node.number,
+          id: node.id,
+          title: node.title,
+          estimate: node.estimate?.value,
+          pipelineName: node.pipelineIssue?.pipeline?.name,
+          repositoryName: node.repository.name,
+          url: `https://app.zenhub.com/workspaces/${workspaceName
+            .replace(" ", "-")
+            .toLocaleLowerCase()}-${workspaceId}/issues/gh/${
+            node.repository.ownerName
+          }/${node.repository.name}/${node.number}`,
+        };
+        return output;
+      }, {}) || {}
     );
   }
 
