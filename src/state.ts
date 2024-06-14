@@ -6,20 +6,18 @@ import ZenHub, {
 } from "./zenhub";
 
 const STATE_VERSION = 4;
-const CACHE_DURATION = 1000 * 60 * 10; // 10 Minutes
+const CACHE_DURATION_DEFAULT = 60 * 10; // 10 Minutes
 
 export type State = {
-  apiKey?: string;
   cachedAt?: number;
-  labelFilter?: string;
   version?: number;
-  workspaceName?: string;
   zenHubIssues?: ZenHubIssuesResult;
   zenHubMetadata?: ZenHubMetadata;
-};
+} & Config;
 
 export type Config = {
   apiKey?: string;
+  cacheDuration?: number;
   labelFilter?: string;
   workspaceName?: string;
 };
@@ -41,6 +39,7 @@ export async function initState() {
     await storage.getMany([
       "apiKey",
       "cachedAt",
+      "cacheDuration",
       "labelFilter",
       "version",
       "workspaceName",
@@ -54,6 +53,7 @@ export async function updateState() {
   const apiKey = getApiKey();
   const labelFilter = getLabelFilter();
   const workspaceName = getWorkspaceName();
+  const cacheDuration = getCacheDuration();
 
   if (!apiKey || !labelFilter || !workspaceName) {
     return;
@@ -66,7 +66,7 @@ export async function updateState() {
 
   if (
     version === STATE_VERSION &&
-    cachedAt >= Date.now() - CACHE_DURATION &&
+    cachedAt >= Date.now() - (cacheDuration * 1000) &&
     zenHubIssues &&
     zenHubMetadata
   ) {
@@ -127,6 +127,10 @@ export function getStorageVersion(): number | undefined {
 
 export function getCachedAt(): number | undefined {
   return cachedState.cachedAt;
+}
+
+export function getCacheDuration(): number {
+  return cachedState.cacheDuration || CACHE_DURATION_DEFAULT;
 }
 
 export async function setPipeline(

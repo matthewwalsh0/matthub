@@ -1,6 +1,7 @@
 import {
   clearCache,
   getApiKey,
+  getCacheDuration,
   getLabelFilter,
   getWorkspaceName,
   initState,
@@ -10,6 +11,7 @@ import { indicateButtonSuccess } from "./util";
 
 class Popup {
   #apiKeyInput: HTMLInputElement;
+  #cacheDurationInput: HTMLInputElement;
   #labelFilterInput: HTMLInputElement;
   #workspaceNameInput: HTMLInputElement;
   #saveButton: HTMLButtonElement;
@@ -17,6 +19,7 @@ class Popup {
 
   constructor() {
     this.#apiKeyInput = document.querySelector("#api-key") as HTMLInputElement;
+    this.#cacheDurationInput = document.querySelector('#cache-duration') as HTMLInputElement;
 
     this.#labelFilterInput = document.querySelector(
       "#label-filter"
@@ -37,10 +40,12 @@ class Popup {
     await initState();
 
     const apiKey = getApiKey();
+    const cacheDuration = getCacheDuration();
     const labelFilter = getLabelFilter();
     const workspaceName = getWorkspaceName();
 
     this.#apiKeyInput.value = apiKey || "";
+    this.#cacheDurationInput.value = String(cacheDuration) || "";
     this.#labelFilterInput.value = labelFilter || "";
     this.#workspaceNameInput.value = workspaceName || "";
 
@@ -59,6 +64,7 @@ class Popup {
   async #onSaveClick() {
     await setConfig({
       apiKey: this.#apiKeyInput.value,
+      cacheDuration: parseInt(this.#cacheDurationInput.value, 10),
       labelFilter: this.#labelFilterInput.value,
       workspaceName: this.#workspaceNameInput.value,
     });
